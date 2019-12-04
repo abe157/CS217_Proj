@@ -89,8 +89,6 @@ main (int argc, char *argv[]) {
 
   printf("%d pixels in output; %d samples in trajectory; using %d samples\n",
          numX, original_numK, numK);
-  printf("numX: %d\noriginal_numK: %d\nnumK: %d\n", numX, original_numK, numK);
-  exit(0);
 
   pb_SwitchToTimer(&timers, pb_TimerID_COMPUTE);
 

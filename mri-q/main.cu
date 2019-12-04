@@ -95,10 +95,12 @@ main (int argc, char *argv[]) {
   /* Create CPU data structures */
   createDataStructsCPU(numK, numX, &phiMag, &Qr, &Qi);
 
-  
+
   ComputePhiMagGPU(numK, phiR, phiI, phiMag);
 
 
+
+  // (TODO) Optimization Opertunity
   kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
   int k;
   for (k = 0; k < numK; k++) {
