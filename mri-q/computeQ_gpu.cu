@@ -45,25 +45,25 @@ __global__ void ComputePhiMagGPUKernel(int numk, float* phiR, float* phiI, float
 
 inline
 void 
-ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* __restrict__ phiMag) {
+ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* phiMag) {
   cudaError_t cuda_ret;
 
   float *phiR_d, *phiI_d, *phiMag_d;
 
   // Allocate device variables ---------------------------------
   cuda_ret = cudaMalloc((void**)&phiR_d, numK * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
   cuda_ret = cudaMalloc((void**)&phiI_d, numK * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
   cuda_ret = cudaMalloc((void**)&phiMag_d, numK * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
 
   cuda_ret = cudaMemcpy(phiR_d, phiR, numK * sizeof(float), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
   cuda_ret = cudaMemcpy(phiI_d, phiI, numK * sizeof(float), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
   cuda_ret = cudaMemset(phiMag_d, 0, numK * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
 
 
   // Launch kernel ----------------------------------------------------------
@@ -73,6 +73,8 @@ ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* __restrict__ phiMag)
   block = PHIMAGBLOCK_SIZE;
   grid = numK / (PHIMAGBLOCK_SIZE);
   if( numK % (PHIMAGBLOCK_SIZE * grid)) grid++;
+
+  printf("\tBLOCK: %d\n\tGRID: %d\n", block, grid);
 
   dim_block.x = block;
   dim_block.y = 1;
