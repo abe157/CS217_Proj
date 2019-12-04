@@ -29,15 +29,15 @@ __global__ void ComputePhiMagGPUKernel(int numk, float* phiR, float* phiI, float
   unsigned int t = threadIdx.x;
   unsigned int offset = (blockIdx.x*PHIMAGBLOCK_SIZE) + t;
 
-  __shared__ float real[PHIMAGBLOCK_SIZE];
-  __shared__ float imag[PHIMAGBLOCK_SIZE];
+  // __shared__ float real[PHIMAGBLOCK_SIZE];
+  // __shared__ float imag[PHIMAGBLOCK_SIZE];
 
   // float real = phiR[offset];
 
   if(offset < numk){
-    real[offset] = phiR[offset];
-    imag[offset] = phiI[offset];
-    phiMag[offset] = real[offset]*real[offset] + imag[offset]*imag[offset];
+    float real = phiR[offset];
+    float imag = phiI[offset];
+    phiMag[offset] = real*real + imag*imag;
   }
 
 
