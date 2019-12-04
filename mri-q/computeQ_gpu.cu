@@ -86,6 +86,9 @@ ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* phiMag) {
 
   ComputePhiMagGPUKernel<<<dim_grid, dim_block>>>(numK, phiR_d, phiI_d, phiMag_d);
 
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
 
   cuda_ret = cudaMemcpy(phiMag, phiMag_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host in naive reduction.");
