@@ -34,7 +34,7 @@
 #include "parboil.h"
 
 #include "file.h"
-#include "computeQ.cc"
+#include "computeQ_gpu.cu"
 
 int
 main (int argc, char *argv[]) {
@@ -89,15 +89,15 @@ main (int argc, char *argv[]) {
 
   printf("%d pixels in output; %d samples in trajectory; using %d samples\n",
          numX, original_numK, numK);
-  printf("numX: %d\noriginal_numK: %d\nnumK: %d\n", numX, original_numK, numK);
-  exit(0);
 
   pb_SwitchToTimer(&timers, pb_TimerID_COMPUTE);
 
   /* Create CPU data structures */
   createDataStructsCPU(numK, numX, &phiMag, &Qr, &Qi);
 
-  ComputePhiMagCPU(numK, phiR, phiI, phiMag);
+  
+  ComputePhiMagGPU(numK, phiR, phiI, phiMag);
+
 
   kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
   int k;
