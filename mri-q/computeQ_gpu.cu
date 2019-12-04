@@ -48,7 +48,7 @@ void
 ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* __restrict__ phiMag) {
   cudaError_t cuda_ret;
 
-  float* phiR_d, phiI_d, phiMag_d;
+  float *phiR_d, *phiI_d, *phiMag_d;
 
   // Allocate device variables ---------------------------------
   cuda_ret = cudaMalloc((void**)&phiR_d, numK * sizeof(float));
@@ -74,7 +74,7 @@ ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* __restrict__ phiMag)
   grid = numK / (PHIMAGBLOCK_SIZE);
   if( numK % (PHIMAGBLOCK_SIZE * grid)) grid++;
 
-  dim_block.x = PHIMAGBLOCK_SIZE;
+  dim_block.x = block;
   dim_block.y = 1;
   dim_block.z = 1;
 
@@ -82,7 +82,7 @@ ComputePhiMagGPU(int numK, float* phiR, float* phiI, float* __restrict__ phiMag)
   dim_grid.y = 1;
   dim_grid.z = 1;
 
-  ComputePhiMagGPUKernel<<<dim_grid, dim_block>>>(numk, phiR_d, phiI_d, phiMag_d);
+  ComputePhiMagGPUKernel<<<dim_grid, dim_block>>>(numK, phiR_d, phiI_d, phiMag_d);
 
 
   cuda_ret = cudaMemcpy(phiMag, phiMag_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
