@@ -45,7 +45,7 @@ gpu: $(GPU_OBJ)
 
 cpu_small:
 	./mri-q -i ./datasets/small/input/32_32_32_dataset.bin -o ./small.out
-	/tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
+	./tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
 
 cpu_large:
 	./mri-q -i ./datasets/large/input/64_64_64_dataset.bin -o ./large.out
@@ -57,7 +57,7 @@ cpu_128:
 
 gpu_small:
 	./mri-q-gpu -i ./datasets/small/input/32_32_32_dataset.bin -o ./small.out
-	/tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
+	./tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
 
 gpu_large:
 	./mri-q-gpu -i ./datasets/large/input/64_64_64_dataset.bin -o ./large.out
