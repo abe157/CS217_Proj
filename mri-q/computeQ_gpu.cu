@@ -215,12 +215,14 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
 
 
   cuda_ret = cudaMemcpy(Qr, Qr_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
   cuda_ret = cudaMemcpy(Qi, Qi_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host in naive reduction.");
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
 
   cudaFree(x_d);
   cudaFree(y_d);
@@ -229,8 +231,6 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   cudaFree(Qi_d);
   cudaFree(kVals_d);
 
-  cuda_ret = cudaDeviceSynchronize();
-  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
 
 }
 
