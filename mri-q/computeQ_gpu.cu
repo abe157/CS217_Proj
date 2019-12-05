@@ -13,6 +13,11 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define K_ELEMS_PER_GRID 2048
 
+
+#define KERNEL_PHI_MAG_THREADS_PER_BLOCK 512
+#define KERNEL_Q_THREADS_PER_BLOCK 256
+#define KERNEL_Q_K_ELEMS_PER_GRID 1024
+
 #define PHIMAGBLOCK_SIZE 512 // 512 or 192
 
 struct kValues {
@@ -38,8 +43,6 @@ __global__ void ComputePhiMagGPUKernel(int numk, float* phiR, float* phiI, float
     float imag = phiI[offset];
     phiMag[offset] = real*real + imag*imag;
   }
-
-
 }
 
 
@@ -118,29 +121,28 @@ ComputePhiMagCPU(int numK, float* phiR, float* phiI, float* phiMag) {
 // void ComputeQGPU_Risky(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
 // }
 
-__global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
-  __shared__ float x_s[PHIMAGBLOCK_SIZE];
-  __shared__ float y_s[PHIMAGBLOCK_SIZE];
-  __shared__ float z_s[PHIMAGBLOCK_SIZE];
+__global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
+  // __shared__ float x_s[PHIMAGBLOCK_SIZE];
+  // __shared__ float y_s[PHIMAGBLOCK_SIZE];
+  // __shared__ float z_s[PHIMAGBLOCK_SIZE];
   // Store this in cache memory, has a lot of resue ability
-  __shared__ struct kValues kVals_s[numK];
+  // __shared__ struct kValues kVals_s[numK];
 
   unsigned int t = threadIdx.x;
-  unsigned int offset = (blockIdx.x*PHIMAGBLOCK_SIZE) + t;
+  unsigned int offset = (blockIdx.x*blockDim.x) + t;
 
-
-  unsigned int i;
-  unsigned int tmp_offset;
-  unsigned int iterations;
-  iterations = numK / PHIMAGBLOCK_SIZE;
-  if(numK % (iterations*PHIMAGBLOCK_SIZE))
-    iterations++;
-
-  for(i = 0; i < iterations; i++)
-    tmp_offset = (i*PHIMAGBLOCK_SIZE) + t;
-    if(tmp_offset < numK)
-      kVals_s[tmp_offset] = kVals[offset];
-
+  
+  // unsigned int i;
+  // unsigned int tmp_offset;
+  // unsigned int iterations;
+  // iterations = numK / PHIMAGBLOCK_SIZE;
+  // if(numK % (iterations*PHIMAGBLOCK_SIZE))
+  //   iterations++;
+  // for(i = 0; i < iterations; i++)
+  //   tmp_offset = (i*PHIMAGBLOCK_SIZE) + t;
+  //   if(tmp_offset < numK)
+  //     kVals_s[tmp_offset] = kVals[offset];
+  
 
   if(offset < numX){
     x_s[t] = x[offset];
@@ -151,12 +153,13 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
     int indexK;
     float Qracc = 0.0f;
     float Qiacc = 0.0f;
-    float expArg;
-    float cosArg;
-    float sinArg;
+    float expArg = 0.0f;
+    float cosArg = 0.0f;
+    float sinArg = 0.0f;
 
     for (indexK = 0; indexK < numK; indexK++) {
-      expArg = PIx2 * (kVals[indexK].Kx * x_s[offset] + kVals[indexK].Ky * y_s[offset] + kVals[indexK].Kz * z_s[offset]);
+      // Generally, numX > numK
+      expArg = PIx2 * (kVals[indexK].Kx * x_s[t] + kVals[indexK].Ky * y_s[t] + kVals[indexK].Kz * z_s[t]);
 
       cosArg = cosf(expArg);
       sinArg = sinf(expArg);
@@ -167,16 +170,15 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
     }
     Qr[offset] = Qracc;
     Qi[offset] = Qiacc;
-
   }
-  //__syncthreads();
+  __syncthreads();
 }
 
 void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
   cudaError_t cuda_ret;
 
   float *x_d, *y_d, *z_d, *Qr_d, *Qi_d;
-  struct kValues *kVals_d;
+  // struct kValues *kVals_d;
 
   // Allocate device variables ---------------------------------
   cuda_ret = cudaMalloc((void**)&x_d, numX * sizeof(float));
@@ -216,7 +218,7 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   if( numX % (PHIMAGBLOCK_SIZE * grid)) 
     grid++;
 
-  printf("\tBLOCK: %d\n\tGRID: %d\n", block, grid);
+  printf("\tBLOCK: %d\n\tGRID: %d\n\tnumX: %d\n\tnumK: %d\n", block, grid, numX, numK);
 
   dim_block.x = block;
   dim_block.y = 1;
@@ -226,7 +228,8 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   dim_grid.y = 1;
   dim_grid.z = 1;
 
-  ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+  // ComputeQGPUKernel(numK, numX, kVals, x, y, z, Qr, Qi)
+  // ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
   cuda_ret = cudaDeviceSynchronize();
@@ -244,10 +247,89 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   cudaFree(Qr_d);
   cudaFree(Qi_d);
   cudaFree(kVals_d);
-
-
 }
 
+//--------------------------------------------------------------------------------------------------------------
+
+__global__ void
+ComputeQ_GPU(int numK, int kGlobalIndex, float* x, float* y, float* z, float* Qr , float* Qi)
+{
+  float sX;
+  float sY;
+  float sZ;
+  float sQr;
+  float sQi;
+
+  // Determine the element of the X arrays computed by this thread
+  int xIndex = blockIdx.x*KERNEL_Q_THREADS_PER_BLOCK + threadIdx.x;
+
+  // Read block's X values from global mem to shared mem
+  sX = x[xIndex];
+  sY = y[xIndex];
+  sZ = z[xIndex];
+  sQr = Qr[xIndex];
+  sQi = Qi[xIndex];
+
+  // Loop over all elements of K in constant mem to compute a partial value
+  // for X.
+  int kIndex = 0;
+  if (numK % 2) {
+    float expArg = PIx2 * (ck[0].Kx * sX + ck[0].Ky * sY + ck[0].Kz * sZ);
+    sQr += ck[0].PhiMag * cos(expArg);
+    sQi += ck[0].PhiMag * sin(expArg);
+    kIndex++;
+    kGlobalIndex++;
+  }
+
+  for (; (kIndex < KERNEL_Q_K_ELEMS_PER_GRID) && (kGlobalIndex < numK);
+       kIndex += 2, kGlobalIndex += 2) {
+    float expArg = PIx2 * (ck[kIndex].Kx * sX +
+         ck[kIndex].Ky * sY +
+         ck[kIndex].Kz * sZ);
+    sQr += ck[kIndex].PhiMag * cos(expArg);
+    sQi += ck[kIndex].PhiMag * sin(expArg);
+
+    int kIndex1 = kIndex + 1;
+    float expArg1 = PIx2 * (ck[kIndex1].Kx * sX +
+          ck[kIndex1].Ky * sY +
+          ck[kIndex1].Kz * sZ);
+    sQr += ck[kIndex1].PhiMag * cos(expArg1);
+    sQi += ck[kIndex1].PhiMag * sin(expArg1);
+  }
+
+  Qr[xIndex] = sQr;
+  Qi[xIndex] = sQi;
+}
+
+
+void computeQ_GPU(int numK, int numX, kValues* kVals, float* x, float* y, float* z, float* Qr, float* Qi)
+{
+  int QGrids = numK / KERNEL_Q_K_ELEMS_PER_GRID;
+  if (numK % KERNEL_Q_K_ELEMS_PER_GRID)
+    QGrids++;
+  int QBlocks = numX / KERNEL_Q_THREADS_PER_BLOCK;
+  if (numX % KERNEL_Q_THREADS_PER_BLOCK)
+    QBlocks++;
+  dim3 DimQBlock(KERNEL_Q_THREADS_PER_BLOCK, 1);
+  dim3 DimQGrid(QBlocks, 1);
+
+  //printf("Launch GPU kernel: %d x (%d, %d) x (%d, %d); %d\n",
+  // QGrids, DimQGrid.x, DimQGrid.y, DimQBlock.x, DimQBlock.y,
+  // KERNEL_Q_K_ELEMS_PER_GRID);
+  for (int QGrid = 0; QGrid < QGrids; QGrid++) {
+    // Put the tile of K values into constant mem
+    int QGridBase = QGrid * KERNEL_Q_K_ELEMS_PER_GRID;
+    kValues* kValsTile = kVals + QGridBase;
+    int numElems = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase);
+
+    cudaMemcpyToSymbol(ck, kValsTile, numElems * sizeof(kValues), 0);
+
+    ComputeQ_GPU <<< DimQGrid, DimQBlock >>>
+      (numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d);
+  }
+}
+
+//--------------------------------------------------------------------------------------------------------------
 
 inline
 void
