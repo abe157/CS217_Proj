@@ -155,7 +155,7 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
     Qi[offset] = Qiacc;
 
   }
-
+  __syncthreads();
 }
 
 void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
