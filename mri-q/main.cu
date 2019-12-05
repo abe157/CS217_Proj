@@ -112,7 +112,7 @@ main (int argc, char *argv[]) {
   }
   // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQ_GPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  computeQ_GPU(numK, numX, kVals, x, y, z, Qr, Qi);
 
   if (params->outFile)
     {

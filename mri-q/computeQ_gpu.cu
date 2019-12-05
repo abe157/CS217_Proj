@@ -115,6 +115,8 @@ ComputePhiMagCPU(int numK, float* phiR, float* phiI, float* phiMag) {
 }
 
 
+//--------------------------------------------------------------------------------------------------------------
+
 
 // __global__ void ComputeQGPUKernel_Risky(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
 // }
@@ -252,7 +254,7 @@ ComputePhiMagCPU(int numK, float* phiR, float* phiI, float* phiMag) {
 //--------------------------------------------------------------------------------------------------------------
 
 __global__ void
-ComputeQ_GPU(int numK, int kGlobalIndex, float* x, float* y, float* z, float* Qr , float* Qi)
+ComputeQ_GPU(int numK, int kGlobalIndex, float* x, float* y, float* z, float* Qr , float* Qi,struct kValues* ck)
 {
   float sX;
   float sY;
@@ -301,8 +303,10 @@ ComputeQ_GPU(int numK, int kGlobalIndex, float* x, float* y, float* z, float* Qr
   Qi[xIndex] = sQi;
 }
 
-void computeQ_GPU(int numK, int numX, kValues* kVals, float* x_d, float* y_d, float* z_d, float* Qr_d, float* Qi_d)
+void computeQ_GPU(int numK, int numX,struct kValues* kVals, float* x_d, float* y_d, float* z_d, float* Qr_d, float* Qi_d)
 {
+  cudaError_t cuda_ret;
+
   int QGrids = numK / KERNEL_Q_K_ELEMS_PER_GRID;
   if (numK % KERNEL_Q_K_ELEMS_PER_GRID)
     QGrids++;
@@ -315,20 +319,24 @@ void computeQ_GPU(int numK, int numX, kValues* kVals, float* x_d, float* y_d, fl
   //printf("Launch GPU kernel: %d x (%d, %d) x (%d, %d); %d\n",
   // QGrids, DimQGrid.x, DimQGrid.y, DimQBlock.x, DimQBlock.y,
   // KERNEL_Q_K_ELEMS_PER_GRID);
+  
+
   for (int QGrid = 0; QGrid < QGrids; QGrid++) {
     // Put the tile of K values into constant mem
     int QGridBase = QGrid * KERNEL_Q_K_ELEMS_PER_GRID;
     kValues* kValsTile = kVals + QGridBase;
     int numElems = MIN(KERNEL_Q_K_ELEMS_PER_GRID, numK - QGridBase);
 
+    kValues* ck;
+    cuda_ret = cudaMalloc((void**)&ck, numElems * sizeof(kValues));
+    if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
     cudaMemcpyToSymbol(ck, kValsTile, numElems * sizeof(kValues), 0);
 
-    ComputeQ_GPU <<< DimQGrid, DimQBlock >>>
-      (numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d);
+    ComputeQ_GPU <<< DimQGrid, DimQBlock >>>(numK, QGridBase, x_d, y_d, z_d, Qr_d, Qi_d, ck);
   }
 }
 
-//--------------------------------------------------------------------------------------------------------------
 
 inline
 void
@@ -364,6 +372,9 @@ ComputeQCPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float
     Qi[indexX] = Qiacc;
   }
 }
+
+//--------------------------------------------------------------------------------------------------------------
+
 
 void createDataStructsCPU(int numK, int numX, float** phiMag, float** Qr, float** Qi){
   *phiMag = (float* ) memalign(16, numK * sizeof(float));
