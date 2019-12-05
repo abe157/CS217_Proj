@@ -122,17 +122,31 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
   __shared__ float x_s[PHIMAGBLOCK_SIZE];
   __shared__ float y_s[PHIMAGBLOCK_SIZE];
   __shared__ float z_s[PHIMAGBLOCK_SIZE];
-  __shared__ struct kValues kVals_s[PHIMAGBLOCK_SIZE];
+  // Store this in cache memory, has a lot of resue ability
+  __shared__ struct kValues kVals_s[numK];
 
   unsigned int t = threadIdx.x;
   unsigned int offset = (blockIdx.x*PHIMAGBLOCK_SIZE) + t;
+
+
+  unsigned int i;
+  unsigned int tmp_offset;
+  unsigned int iterations;
+  iterations = numK / PHIMAGBLOCK_SIZE;
+  if(numK % (iterations*PHIMAGBLOCK_SIZE))
+    iterations++;
+
+  for(i = 0; i < iterations; i++)
+    tmp_offset = (i*PHIMAGBLOCK_SIZE) + t;
+    if(tmp_offset < numK)
+      kVals_s[tmp_offset] = kVals[offset];
 
 
   if(offset < numX){
     x_s[t] = x[offset];
     y_s[t] = y[offset];
     z_s[t] = z[offset];
-    kVals_s[t] = kVals[offset];
+    // kVals_s[t] = kVals[offset];
 
     int indexK;
     float Qracc = 0.0f;
@@ -142,7 +156,7 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
     float sinArg;
 
     for (indexK = 0; indexK < numK; indexK++) {
-      expArg = PIx2 * (kVals_s[indexK].Kx * x_s[offset] + kVals_s[indexK].Ky * y_s[offset] + kVals_s[indexK].Kz * z_s[offset]);
+      expArg = PIx2 * (kVals[indexK].Kx * x_s[offset] + kVals[indexK].Ky * y_s[offset] + kVals[indexK].Kz * z_s[offset]);
 
       cosArg = cosf(expArg);
       sinArg = sinf(expArg);
@@ -155,7 +169,7 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
     Qi[offset] = Qiacc;
 
   }
-  __syncthreads();
+  //__syncthreads();
 }
 
 void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){

@@ -110,6 +110,7 @@ main (int argc, char *argv[]) {
     kVals[k].Kz = kz[k];
     kVals[k].PhiMag = phiMag[k];
   }
+  // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
 
   if (params->outFile)
