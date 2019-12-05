@@ -185,9 +185,9 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
   cuda_ret = cudaMemcpy(z_d, z, numX * sizeof(float), cudaMemcpyHostToDevice);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemset(Qr_d, 0, numX * sizeof(float));
+  cuda_ret = cudaMemset(Qr_d, 0, numK * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
-  cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
+  cuda_ret = cudaMemset(Qi_d, 0, numK * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
   cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
