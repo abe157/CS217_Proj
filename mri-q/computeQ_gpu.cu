@@ -199,7 +199,8 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   unsigned block, grid;
   block = PHIMAGBLOCK_SIZE;
   grid = numX / (PHIMAGBLOCK_SIZE);
-  if( numX % (PHIMAGBLOCK_SIZE * grid)) grid++;
+  if( numX % (PHIMAGBLOCK_SIZE * grid)) 
+    grid++;
 
   printf("\tBLOCK: %d\n\tGRID: %d\n", block, grid);
 
@@ -214,8 +215,7 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
-  cuda_ret = cudaDeviceSynchronize();
-  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
 
   cuda_ret = cudaMemcpy(Qr, Qr_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host in naive reduction.");
@@ -228,6 +228,9 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   cudaFree(Qr_d);
   cudaFree(Qi_d);
   cudaFree(kVals_d);
+
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
 
 }
 
