@@ -301,8 +301,7 @@ ComputeQ_GPU(int numK, int kGlobalIndex, float* x, float* y, float* z, float* Qr
   Qi[xIndex] = sQi;
 }
 
-
-void computeQ_GPU(int numK, int numX, kValues* kVals, float* x, float* y, float* z, float* Qr, float* Qi)
+void computeQ_GPU(int numK, int numX, kValues* kVals, float* x_d, float* y_d, float* z_d, float* Qr_d, float* Qi_d)
 {
   int QGrids = numK / KERNEL_Q_K_ELEMS_PER_GRID;
   if (numK % KERNEL_Q_K_ELEMS_PER_GRID)
