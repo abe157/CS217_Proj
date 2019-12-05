@@ -95,8 +95,9 @@ main (int argc, char *argv[]) {
   /* Create CPU data structures */
   createDataStructsCPU(numK, numX, &phiMag, &Qr, &Qi);
 
-
-  ComputePhiMagGPU(numK, phiR, phiI, phiMag);
+  
+  // ComputePhiMagGPU(numK, phiR, phiI, phiMag);
+  ComputePhiMagCPU(numK, phiR, phiI, phiMag);
 
 
 
@@ -109,7 +110,7 @@ main (int argc, char *argv[]) {
     kVals[k].Kz = kz[k];
     kVals[k].PhiMag = phiMag[k];
   }
-  ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
 
   if (params->outFile)
     {
