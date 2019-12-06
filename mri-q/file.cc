@@ -90,10 +90,6 @@ void writeTesting(char* fName, float* outR, float* outI, int numX){
       exit(-1);
     }
 
-  /* Write the data size */
-  tmp32 = numX;
-  fwrite(&tmp32, sizeof(uint32_t), 1, fid);
-
   /* Write the reconstructed data */
   int i = 0;
   for(i = 0; i < numX; i++){
