@@ -111,8 +111,8 @@ main (int argc, char *argv[]) {
     {
       /* Write Q to file */
       pb_SwitchToTimer(&timers, pb_TimerID_IO);
-      // outputData(params->outFile, Qr, Qi, numX);
-      writeTesting(params->outFile, Qr, Qi, numX);
+      outputData(params->outFile, Qr, Qi, numX);
+      // writeTesting(params->outFile, Qr, Qi, numX);
       pb_SwitchToTimer(&timers, pb_TimerID_COMPUTE);
     }
 
