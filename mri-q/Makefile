@@ -32,6 +32,8 @@ args.o: args.c
 mri-q: main.o file.o args.o parboil.o
 	$(CPP) $(APP_CXXFLAGS) $(OBJ) -o $(EXE) $(APP_LDFLAGS)
 
+cpu: $(EXE)
+
 
 # GPU BUILD
 
