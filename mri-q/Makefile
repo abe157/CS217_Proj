@@ -70,4 +70,4 @@ gpu_128:
 	./tools/compare-output ./128.out ./datasets/large/output/64_64_64_dataset.out 
 
 clean:
-	rm -f *.o $(EXE) $(GPUEXE)
+	rm -f *.o ./*.out $(EXE) $(GPUEXE) 

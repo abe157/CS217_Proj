@@ -36,8 +36,10 @@
 #include "file.h"
 #include "computeQ_gpu.cu"
 
-int
-main (int argc, char *argv[]) {
+
+
+
+int main (int argc, char *argv[]) {
   int numX, numK;		/* Number of X and K values */
   int original_numK;		/* Number of K values in input file */
   float *kx, *ky, *kz;		/* K trajectory (3D vectors) */
@@ -114,11 +116,21 @@ main (int argc, char *argv[]) {
   ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // computeQ_GPU(numK, numX, kVals, x, y, z, Qr, Qi);
 
+
+  /* Write Q values to file */
+  if(params->outFile){
+    pb_SwitchToTimer(&timers, pb_TimerID_IO);
+    writeTesting(params->outFile, Qr, Qi, numX);
+    pb_SwitchToTimer(&timers, pb_TimerID_COMPUTE);
+  }
+
+
   if (params->outFile)
     {
       /* Write Q to file */
       pb_SwitchToTimer(&timers, pb_TimerID_IO);
-      outputData(params->outFile, Qr, Qi, numX);
+      // outputData(params->outFile, Qr, Qi, numX);
+      writeTesting(params->outFile, Qr, Qi, numX);
       pb_SwitchToTimer(&timers, pb_TimerID_COMPUTE);
     }
 

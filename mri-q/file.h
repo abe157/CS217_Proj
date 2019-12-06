@@ -17,6 +17,8 @@ void inputData(char* fName, int* _numK, int* _numX,
 
 void outputData(char* fName, float* outR, float* outI, int numX);
 
+void writeTesting(char* fName, float* outR, float* outI, int numX);
+
 #ifdef __cplusplus
 }
 #endif

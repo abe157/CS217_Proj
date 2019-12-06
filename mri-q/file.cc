@@ -75,3 +75,45 @@ void outputData(char* fName, float* outR, float* outI, int numX)
   fwrite (outI, sizeof (float), numX, fid);
   fclose (fid);
 }
+
+
+extern "C"
+void writeTesting(char* fName, float* outR, float* outI, int numX){
+  /* outfile.out , Qr, Qi, numX */
+
+  FILE* fid = fopen(fName, "w");
+  uint32_t tmp32;
+
+  if (fid == NULL)
+    {
+      fprintf(stderr, "Cannot open output file\n");
+      exit(-1);
+    }
+
+  /* Write the data size */
+  tmp32 = numX;
+  fwrite(&tmp32, sizeof(uint32_t), 1, fid);
+
+  /* Write the reconstructed data */
+  int i = 0;
+  for(i = 0; i < numX; i++){
+    fprintf(fid, "Qr[%d]=%f\tQi[%d]=%f\n", i, outR[i], i , outI[i]);
+  }
+
+  // fwrite (outR, sizeof (float), numX, fid);
+  // fwrite (outI, sizeof (float), numX, fid);
+  fclose (fid);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
