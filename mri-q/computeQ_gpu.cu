@@ -179,7 +179,12 @@ __global__ void ComputeQGPUKernel(int numK, int numX, struct kValues *kVals, flo
 void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
   cudaError_t cuda_ret;
 
-  float *x_d, *y_d, *z_d, *Qr_d, *Qi_d;
+  float *x_d; //numX
+  float *y_d; //numX
+  float *z_d; //numX
+  float *Qr_d; //numX
+  float *Qi_d; //numX
+  
   struct kValues *kVals_d;
 
   // Allocate device variables ---------------------------------
@@ -189,9 +194,9 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
   cuda_ret = cudaMalloc((void**)&z_d, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&Qr_d, numK * sizeof(float));
+  cuda_ret = cudaMalloc((void**)&Qr_d, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&Qi_d, numK * sizeof(float));
+  cuda_ret = cudaMalloc((void**)&Qi_d, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
   cuda_ret = cudaMalloc((void**)&kVals_d, numK * sizeof(struct kValues));
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
@@ -203,9 +208,9 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
   cuda_ret = cudaMemcpy(z_d, z, numX * sizeof(float), cudaMemcpyHostToDevice);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemset(Qr_d, 0, numK * sizeof(float));
+  cuda_ret = cudaMemset(Qr_d, 0, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
-  cuda_ret = cudaMemset(Qi_d, 0, numK * sizeof(float));
+  cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
   cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
   // cuda_ret = cudaMemcpyToSymbol(kVals_d, kVals, )
@@ -232,16 +237,16 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   dim_grid.z = 1;
 
   // ComputeQGPUKernel(numK, numX, kVals, x, y, z, Qr, Qi)
-  // ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+  ComputeQGPUKernel<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
   cuda_ret = cudaDeviceSynchronize();
   if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
 
 
-  cuda_ret = cudaMemcpy(Qr, Qr_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
+  cuda_ret = cudaMemcpy(Qr, Qr_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
-  cuda_ret = cudaMemcpy(Qi, Qi_d, numK * sizeof(float), cudaMemcpyDeviceToHost);
+  cuda_ret = cudaMemcpy(Qi, Qi_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
 
   cudaFree(x_d);
