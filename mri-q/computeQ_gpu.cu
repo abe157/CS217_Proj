@@ -20,6 +20,11 @@
 
 #define PHIMAGBLOCK_SIZE 512 // 512 or 192
 
+// 16 bytes structure
+// constant memory is 64KB == 2^16
+// Max kValues elements is 4094 ~= 2^16B / 16B
+#define kValuesMax 4094
+
 struct kValues {
   float Kx;
   float Ky;
@@ -27,7 +32,8 @@ struct kValues {
   float PhiMag;
 };
 
-__constant__ struct kValues *Kvalues_c;
+
+__device__ __constant__ struct kValues Kvalues_c[kValuesMax];
 
 __global__ void ComputePhiMagGPUKernel(int numk, float* phiR, float* phiI, float* phiMag){
 
@@ -122,8 +128,8 @@ inline void ComputePhiMagCPU(int numK, float* phiR, float* phiI, float* phiMag) 
 // void ComputeQGPU_Risky(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
 // }
 
-// __global__ void ComputeQGPUKernel_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
-__global__ void ComputeQGPUKernel_2(int numK, int numX, float* x, float* y, float* z, float *Qr, float *Qi){
+__global__ void ComputeQGPUKernel_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
+// __global__ void ComputeQGPUKernel_2(int numK, int numX, float* x, float* y, float* z, float *Qr, float *Qi){
   __shared__ float x_s[PHIMAGBLOCK_SIZE];
   __shared__ float y_s[PHIMAGBLOCK_SIZE];
   __shared__ float z_s[PHIMAGBLOCK_SIZE];
@@ -158,15 +164,23 @@ __global__ void ComputeQGPUKernel_2(int numK, int numX, float* x, float* y, floa
     float expArg = 0.0f;
     float cosArg = 0.0f;
     float sinArg = 0.0f;
+    float phi = 0.0f;
 
     for (indexK = 0; indexK < numK; indexK++) {
       // Generally, numX > numK
-      expArg = PIx2 * (Kvalues_c[indexK].Kx * x_s[t] + Kvalues_c[indexK].Ky * y_s[t] + Kvalues_c[indexK].Kz * z_s[t]);
+
+      if(indexK < kValuesMax){ // Use constant memory
+        expArg = PIx2 * (Kvalues_c[indexK].Kx * x_s[t] + Kvalues_c[indexK].Ky * y_s[t] + Kvalues_c[indexK].Kz * z_s[t]);
+        phi = Kvalues_c[indexK].PhiMag;
+      } 
+      else { // Use global memory
+        expArg = PIx2 * (kVals[indexK].Kx * x_s[t] + kVals[indexK].Ky * y_s[t] + kVals[indexK].Kz * z_s[t]);
+        phi = kVals[indexK].PhiMag;
+      }
 
       cosArg = cosf(expArg);
       sinArg = sinf(expArg);
 
-      float phi = Kvalues_c[indexK].PhiMag;
       Qracc += phi * cosArg;
       Qiacc += phi * sinArg;
     }
@@ -185,7 +199,7 @@ void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y
   float *Qr_d; //numX
   float *Qi_d; //numX
   
-  // struct kValues *kVals_d;
+  struct kValues *kVals_d;
 
   // Allocate device variables ---------------------------------
   cuda_ret = cudaMalloc((void**)&x_d, numX * sizeof(float));
@@ -198,8 +212,8 @@ void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
   cuda_ret = cudaMalloc((void**)&Qi_d, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  // cuda_ret = cudaMalloc((void**)&kVals_d, numK * sizeof(struct kValues));
-  // if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&kVals_d, numK * sizeof(struct kValues));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
 
 
   cuda_ret = cudaMemcpy(x_d, x, numX * sizeof(float), cudaMemcpyHostToDevice);
@@ -212,12 +226,15 @@ void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
   cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
-  // cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
-  // if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
 
-  cuda_ret = cudaMemcpyToSymbol(Kvalues_c, kVals, numK * sizeof(struct kValues), 0, cudaMemcpyHostToDevice);
+  // Use constant memory for the first kValuesMax elements
+  cuda_ret = cudaMemcpyToSymbol(Kvalues_c, kVals, kValuesMax * sizeof(struct kValues), 0, cudaMemcpyHostToDevice);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
 
+  // Use global memory for the [kValuesMax:numK] elements not already in constant memory
+  // cuda_ret = cudaMemcpy(kVals_d, &kVals[kValuesMax], (numK-kValuesMax) * sizeof(struct kValues), cudaMemcpyHostToDevice);
+  cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
 
   // Launch kernel ----------------------------------------------------------
 
@@ -238,8 +255,8 @@ void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y
   dim_grid.y = 1;
   dim_grid.z = 1;
 
-  // ComputeQGPUKernel(numK, numX, kVals, x, y, z, Qr, Qi)
-  ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, x_d, y_d, z_d, Qr_d, Qi_d);
+  ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+  // ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
   cuda_ret = cudaDeviceSynchronize();
@@ -256,8 +273,8 @@ void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y
   cudaFree(z_d);
   cudaFree(Qr_d);
   cudaFree(Qi_d);
-  // cudaFree(kVals_d);
-  cudaFree(Kvalues_c);
+  cudaFree(kVals_d);
+  // cudaFree(Kvalues_c);
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -352,7 +369,6 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
   cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
   cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
-  // cuda_ret = cudaMemcpyToSymbol(kVals_d, kVals, )
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
 
 
@@ -398,9 +414,7 @@ void ComputeQGPU(int numK, int numX, struct kValues *kVals, float* x, float* y, 
 
 //--------------------------------------------------------------------------------------------------------------
 
-inline
-void
-ComputeQCPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi) {
+inline void ComputeQCPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi) {
   float expArg;
   float cosArg;
   float sinArg;
@@ -433,7 +447,7 @@ ComputeQCPU(int numK, int numX, struct kValues *kVals, float* x, float* y, float
   }
 }
 
-
+//--------------------------------------------------------------------------------------------------------------
 
 void createDataStructsCPU(int numK, int numX, float** phiMag, float** Qr, float** Qi){
   *phiMag = (float* ) memalign(16, numK * sizeof(float));
