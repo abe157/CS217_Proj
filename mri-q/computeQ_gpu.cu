@@ -37,11 +37,13 @@ struct kValues {
   float PhiMag;
 };
 
+// kValues Constant
+__device__ __constant__ struct kValues Kvalues_c[kValuesMax];
 
-// __device__ __constant__ struct kValues Kvalues_c[kValuesMax];
-__device__ __constant__ float x_c[floatMax];
-__device__ __constant__ float y_c[floatMax];
-__device__ __constant__ float z_c[floatMax];
+// X,Y,Z Constant
+// __device__ __constant__ float x_c[floatMax];
+// __device__ __constant__ float y_c[floatMax];
+// __device__ __constant__ float z_c[floatMax];
 
 __global__ void ComputePhiMagGPUKernel(int numk, float* phiR, float* phiI, float* phiMag){
 
@@ -131,157 +133,7 @@ inline void ComputePhiMagCPU(int numK, float* phiR, float* phiI, float* phiMag) 
 //--------------------------------------------------------------------------------------------------------------
 
 
-__global__ void ComputeQGPUKernel_3(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
-// __global__ void ComputeQGPUKernel_2(int numK, int numX, float* x, float* y, float* z, float *Qr, float *Qi){
-  __shared__ float x_s[PHIMAGBLOCK_SIZE];
-  __shared__ float y_s[PHIMAGBLOCK_SIZE];
-  __shared__ float z_s[PHIMAGBLOCK_SIZE];
-  // Store this in cache memory, has a lot of resue ability
-  // __shared__ struct kValues kVals_s[numK];
-
-  unsigned int t = threadIdx.x;
-  unsigned int offset = (blockIdx.x*blockDim.x) + t;
-
-
-  if(offset < numX){
-    x_s[t] = x[offset];
-    y_s[t] = y[offset];
-    z_s[t] = z[offset];
-    // kVals_s[t] = kVals[offset];
-
-    int indexK;
-    float Qracc = 0.0f;
-    float Qiacc = 0.0f;
-    float expArg = 0.0f;
-    float cosArg = 0.0f;
-    float sinArg = 0.0f;
-    float phi = 0.0f;
-
-    for (indexK = 0; indexK < numK; indexK++) {
-      // Generally, numX > numK
-
-      if(t < floatMax){ // Use constant memory
-        expArg = PIx2 * (kVals[indexK].Kx * x_c[t] + kVals[indexK].Ky * y_c[t] + kVals[indexK].Kz * z_c[t]);
-        phi = kVals[indexK].PhiMag;
-      } 
-      else { // Use global memory
-        expArg = PIx2 * (kVals[indexK].Kx * x_s[t] + kVals[indexK].Ky * y_s[t] + kVals[indexK].Kz * z_s[t]);
-        phi = kVals[indexK].PhiMag;
-      }
-
-      cosArg = cosf(expArg);
-      sinArg = sinf(expArg);
-
-      Qracc += phi * cosArg;
-      Qiacc += phi * sinArg;
-    }
-    Qr[offset] = Qracc;
-    Qi[offset] = Qiacc;
-  }
-  __syncthreads();
-}
-
-void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
-  cudaError_t cuda_ret;
-
-  float *x_d; //numX
-  float *y_d; //numX
-  float *z_d; //numX
-  float *Qr_d; //numX
-  float *Qi_d; //numX
-  
-  struct kValues *kVals_d;
-
-  // Allocate device variables ---------------------------------
-  cuda_ret = cudaMalloc((void**)&x_d, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&y_d, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&z_d, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&Qr_d, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&Qi_d, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-  cuda_ret = cudaMalloc((void**)&kVals_d, numK * sizeof(struct kValues));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
-
-
-  cuda_ret = cudaMemcpy(x_d, x, numX * sizeof(float), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemcpy(y_d, y, numX * sizeof(float), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemcpy(z_d, z, numX * sizeof(float), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemset(Qr_d, 0, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
-  cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
-  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
-
-  // Use constant memory for the first floatMax elements
-  int constCopies = 0;
-  if(numX < floatMax )
-    constCopies = numX;
-  else
-    constCopies = floatMax;
-
-  cuda_ret = cudaMemcpyToSymbol(x_c, x, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemcpyToSymbol(y_c, y, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-  cuda_ret = cudaMemcpyToSymbol(z_c, z, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-
-  // Use global memory for the [kValuesMax:numK] elements not already in constant memory
-  // cuda_ret = cudaMemcpy(kVals_d, &kVals[kValuesMax], (numK-kValuesMax) * sizeof(struct kValues), cudaMemcpyHostToDevice);
-  cuda_ret = cudaMemcpy(kVals_d, kVals, numK * sizeof(struct kValues), cudaMemcpyHostToDevice);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
-
-  // Launch kernel ----------------------------------------------------------
-
-  dim3 dim_grid, dim_block;
-  unsigned block, grid;
-  block = PHIMAGBLOCK_SIZE;
-  grid = numX / (PHIMAGBLOCK_SIZE);
-  if( numX % (PHIMAGBLOCK_SIZE * grid)) 
-    grid++;
-
-  printf("\tBLOCK: %d\n\tGRID: %d\n\tnumX: %d\n\tnumK: %d\n", block, grid, numX, numK);
-
-  dim_block.x = block;
-  dim_block.y = 1;
-  dim_block.z = 1;
-
-  dim_grid.x = grid;
-  dim_grid.y = 1;
-  dim_grid.z = 1;
-
-  ComputeQGPUKernel_3<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
-  // ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, x_d, y_d, z_d, Qr_d, Qi_d);
-
-
-  cuda_ret = cudaDeviceSynchronize();
-  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
-
-
-  cuda_ret = cudaMemcpy(Qr, Qr_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
-  cuda_ret = cudaMemcpy(Qi, Qi_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
-  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
-
-  cudaFree(x_d);
-  cudaFree(y_d);
-  cudaFree(z_d);
-  cudaFree(Qr_d);
-  cudaFree(Qi_d);
-  cudaFree(kVals_d);
-  // cudaFree(Kvalues_c);
-}
-
-//--------------------------------------------------------------------------------------------------------------
-
-
-// __global__ void ComputeQGPUKernel_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
+// __global__ void ComputeQGPUKernel_3(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi){
 // // __global__ void ComputeQGPUKernel_2(int numK, int numX, float* x, float* y, float* z, float *Qr, float *Qi){
 //   __shared__ float x_s[PHIMAGBLOCK_SIZE];
 //   __shared__ float y_s[PHIMAGBLOCK_SIZE];
@@ -292,18 +144,6 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //   unsigned int t = threadIdx.x;
 //   unsigned int offset = (blockIdx.x*blockDim.x) + t;
 
-  
-//   // unsigned int i;
-//   // unsigned int tmp_offset;
-//   // unsigned int iterations;
-//   // iterations = numK / PHIMAGBLOCK_SIZE;
-//   // if(numK % (iterations*PHIMAGBLOCK_SIZE))
-//   //   iterations++;
-//   // for(i = 0; i < iterations; i++)
-//   //   tmp_offset = (i*PHIMAGBLOCK_SIZE) + t;
-//   //   if(tmp_offset < numK)
-//   //     kVals_s[tmp_offset] = kVals[offset];
-  
 
 //   if(offset < numX){
 //     x_s[t] = x[offset];
@@ -322,9 +162,9 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //     for (indexK = 0; indexK < numK; indexK++) {
 //       // Generally, numX > numK
 
-//       if(indexK < kValuesMax){ // Use constant memory
-//         expArg = PIx2 * (Kvalues_c[indexK].Kx * x_s[t] + Kvalues_c[indexK].Ky * y_s[t] + Kvalues_c[indexK].Kz * z_s[t]);
-//         phi = Kvalues_c[indexK].PhiMag;
+//       if(offset < floatMax){ // Use constant memory
+//         expArg = PIx2 * (kVals[indexK].Kx * x_c[offset] + kVals[indexK].Ky * y_c[offset] + kVals[indexK].Kz * z_c[offset]);
+//         phi = kVals[indexK].PhiMag;
 //       } 
 //       else { // Use global memory
 //         expArg = PIx2 * (kVals[indexK].Kx * x_s[t] + kVals[indexK].Ky * y_s[t] + kVals[indexK].Kz * z_s[t]);
@@ -343,7 +183,7 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //   __syncthreads();
 // }
 
-// void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
+// void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
 //   cudaError_t cuda_ret;
 
 //   float *x_d; //numX
@@ -380,8 +220,18 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //   cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
 //   if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
 
-//   // Use constant memory for the first kValuesMax elements
-//   cuda_ret = cudaMemcpyToSymbol(Kvalues_c, kVals, kValuesMax * sizeof(struct kValues), 0, cudaMemcpyHostToDevice);
+//   // Use constant memory for the first floatMax elements
+//   int constCopies = 0;
+//   if(numX < floatMax )
+//     constCopies = numX;
+//   else
+//     constCopies = floatMax;
+
+//   cuda_ret = cudaMemcpyToSymbol(x_c, x, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
+//   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+//   cuda_ret = cudaMemcpyToSymbol(y_c, y, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
+//   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+//   cuda_ret = cudaMemcpyToSymbol(z_c, z, constCopies * sizeof(float), 0, cudaMemcpyHostToDevice);
 //   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
 
 //   // Use global memory for the [kValuesMax:numK] elements not already in constant memory
@@ -408,7 +258,7 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //   dim_grid.y = 1;
 //   dim_grid.z = 1;
 
-//   ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+//   ComputeQGPUKernel_3<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
 //   // ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, x_d, y_d, z_d, Qr_d, Qi_d);
 
 
@@ -429,6 +279,172 @@ void ComputeQGPU_3(int numK, int numX, struct kValues *kVals, float* x, float* y
 //   cudaFree(kVals_d);
 //   // cudaFree(Kvalues_c);
 // }
+
+//--------------------------------------------------------------------------------------------------------------
+
+
+__global__ void ComputeQGPUKernel_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *Qr, float *Qi, int kValsCopies){
+  __shared__ float x_s[PHIMAGBLOCK_SIZE];
+  __shared__ float y_s[PHIMAGBLOCK_SIZE];
+  __shared__ float z_s[PHIMAGBLOCK_SIZE];
+  // Store this in cache memory, has a lot of resue ability
+  // __shared__ struct kValues kVals_s[numK];
+
+  unsigned int t = threadIdx.x;
+  unsigned int offset = (blockIdx.x*blockDim.x) + t;
+
+  
+  // unsigned int i;
+  // unsigned int tmp_offset;
+  // unsigned int iterations;
+  // iterations = numK / PHIMAGBLOCK_SIZE;
+  // if(numK % (iterations*PHIMAGBLOCK_SIZE))
+  //   iterations++;
+  // for(i = 0; i < iterations; i++)
+  //   tmp_offset = (i*PHIMAGBLOCK_SIZE) + t;
+  //   if(tmp_offset < numK)
+  //     kVals_s[tmp_offset] = kVals[offset];
+  
+
+  if(offset < numX){
+    x_s[t] = x[offset];
+    y_s[t] = y[offset];
+    z_s[t] = z[offset];
+    // kVals_s[t] = kVals[offset];
+
+    int indexK;
+    float Qracc = 0.0f;
+    float Qiacc = 0.0f;
+    float expArg = 0.0f;
+    float cosArg = 0.0f;
+    float sinArg = 0.0f;
+    float phi = 0.0f;
+
+    for (indexK = 0; indexK < numK; indexK++) {
+      // Generally, numX > numK
+
+      if(indexK < kValsCopies){ // Use constant memory
+        expArg = PIx2 * (Kvalues_c[indexK].Kx * x_s[t] + Kvalues_c[indexK].Ky * y_s[t] + Kvalues_c[indexK].Kz * z_s[t]);
+        phi = Kvalues_c[indexK].PhiMag;
+      } else { // Use global memory
+        expArg = PIx2 * (kVals[indexK-kValsCopies].Kx * x_s[t] + kVals[indexK-kValsCopies].Ky * y_s[t] + kVals[indexK-kValsCopies].Kz * z_s[t]);
+        phi = kVals[indexK-kValsCopies].PhiMag;
+      }
+
+      cosArg = cosf(expArg);
+      sinArg = sinf(expArg);
+
+      Qracc += phi * cosArg;
+      Qiacc += phi * sinArg;
+    }
+    Qr[offset] = Qracc;
+    Qi[offset] = Qiacc;
+  }
+  __syncthreads();
+}
+
+void ComputeQGPU_2(int numK, int numX, struct kValues *kVals, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
+  cudaError_t cuda_ret;
+
+  float *x_d; //numX
+  float *y_d; //numX
+  float *z_d; //numX
+  float *Qr_d; //numX
+  float *Qi_d; //numX
+  
+  struct kValues *kVals_d;
+
+  int kValsCopies = 0;
+  int kValsGlobal = 0;
+  if(numK < kValuesMax)
+    kValsCopies = numK;
+  else
+    kValsCopies = kValuesMax;
+  kValsGlobal = numK - kValsCopies;
+
+
+  // Allocate device variables ---------------------------------
+  cuda_ret = cudaMalloc((void**)&x_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&y_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&z_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&Qr_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&Qi_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
+  if(kValsGlobal){
+    cuda_ret = cudaMalloc((void**)&kVals_d, kValsGlobal * sizeof(struct kValues));
+    if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  }
+
+
+  cuda_ret = cudaMemcpy(x_d, x, numX * sizeof(float), cudaMemcpyHostToDevice);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpy(y_d, y, numX * sizeof(float), cudaMemcpyHostToDevice);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpy(z_d, z, numX * sizeof(float), cudaMemcpyHostToDevice);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemset(Qr_d, 0, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
+  cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
+
+
+
+  // Use constant memory for the first kValuesMax elements
+  cuda_ret = cudaMemcpyToSymbol(Kvalues_c, kVals, kValsCopies * sizeof(struct kValues), 0, cudaMemcpyHostToDevice);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+
+  // Use global memory for the [kValuesMax:numK] elements not already in constant memory
+  if(kValsGlobal){
+    cuda_ret = cudaMemcpy(kVals_d, &kVals[kValsGlobal], kValsGlobal * sizeof(struct kValues), cudaMemcpyHostToDevice);
+    if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  }
+
+  // Launch kernel ----------------------------------------------------------
+
+  dim3 dim_grid, dim_block;
+  unsigned block, grid;
+  block = PHIMAGBLOCK_SIZE;
+  grid = numX / (PHIMAGBLOCK_SIZE);
+  if( numX % (PHIMAGBLOCK_SIZE * grid)) 
+    grid++;
+
+  printf("\tBLOCK: %d\n\tGRID: %d\n\tnumX: %d\n\tnumK: %d\n", block, grid, numX, numK);
+
+  dim_block.x = block;
+  dim_block.y = 1;
+  dim_block.z = 1;
+
+  dim_grid.x = grid;
+  dim_grid.y = 1;
+  dim_grid.z = 1;
+
+  ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d, kValsCopies);
+  // ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+  // ComputeQGPUKernel_2<<<dim_grid, dim_block>>>(numK, numX, x_d, y_d, z_d, Qr_d, Qi_d);
+
+
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
+
+  cuda_ret = cudaMemcpy(Qr, Qr_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
+  cuda_ret = cudaMemcpy(Qi, Qi_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
+
+  cudaFree(x_d);
+  cudaFree(y_d);
+  cudaFree(z_d);
+  cudaFree(Qr_d);
+  cudaFree(Qi_d);
+  if(kValsGlobal)
+    cudaFree(kVals_d);
+}
 
 //--------------------------------------------------------------------------------------------------------------
 

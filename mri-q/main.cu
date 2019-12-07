@@ -114,8 +114,8 @@ int main (int argc, char *argv[]) {
   }
   // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  // ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
 
 
   /* Write Q values to file */
