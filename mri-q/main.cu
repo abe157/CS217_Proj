@@ -113,8 +113,8 @@ int main (int argc, char *argv[]) {
     kVals[k].PhiMag = phiMag[k];
   }
   // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  // computeQ_GPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
 
 
   /* Write Q values to file */
