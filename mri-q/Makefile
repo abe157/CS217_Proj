@@ -67,7 +67,6 @@ gpu_large:
 
 gpu_128:
 	./mri-q-gpu -i ./datasets/128x128x128/input/128x128x128.bin -o ./128.out
-	./tools/compare-output ./128.out ./datasets/large/output/64_64_64_dataset.out 
 
 clean:
 	rm -f *.o ./*.out $(EXE) $(GPUEXE) 
