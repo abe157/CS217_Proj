@@ -124,7 +124,7 @@ int main (int argc, char *argv[]) {
   // ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
   //Using Streams
-  ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
+  StreamComputeOnGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
 
   /* Write Q values to file */
