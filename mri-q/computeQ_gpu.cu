@@ -40,7 +40,7 @@ struct kValues {
 // kValues Constant
 // __device__ __constant__ struct kValues Kvalues_c[kValuesMax];
 
-X,Y,Z Constant
+// X,Y,Z Constant
 __device__ __constant__ float x_c[floatMax];
 __device__ __constant__ float y_c[floatMax];
 __device__ __constant__ float z_c[floatMax];
