@@ -37,7 +37,27 @@
 #include "computeQ_gpu.cu"
 
 
+void ComputekValsCPUGPU(int numK, int numX, struct kValues *kVals, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
+  // ComputePhiMagGPU(numK, phiR, phiI, phiMag);
+  ComputePhiMagCPU(numK, phiR, phiI, phiMag);
 
+  kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
+  int k;
+  for (k = 0; k < numK; k++) {
+    kVals[k].Kx = kx[k];
+    kVals[k].Ky = ky[k];
+    kVals[k].Kz = kz[k];
+    kVals[k].PhiMag = phiMag[k];
+  }
+  // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
+}
+
+void ComputekValsGPU(int numK, int numX, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
+  ComputeOnGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
+}
 
 int main (int argc, char *argv[]) {
   int numX, numK;		/* Number of X and K values */
@@ -97,25 +117,11 @@ int main (int argc, char *argv[]) {
   /* Create CPU data structures */
   createDataStructsCPU(numK, numX, &phiMag, &Qr, &Qi);
 
-  
-  // ComputePhiMagGPU(numK, phiR, phiI, phiMag);
-  ComputePhiMagCPU(numK, phiR, phiI, phiMag);
+  //Part CPU GPU
+  // ComputekValsCPUGPU(numK, numX, kVals, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
-
-
-  // (TODO) Optimization Opertunity
-  kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
-  int k;
-  for (k = 0; k < numK; k++) {
-    kVals[k].Kx = kx[k];
-    kVals[k].Ky = ky[k];
-    kVals[k].Kz = kz[k];
-    kVals[k].PhiMag = phiMag[k];
-  }
-  // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
-  // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
+  //ALL GPU
+  ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
 
   /* Write Q values to file */
