@@ -925,6 +925,10 @@ void StreamComputeOnGPU(int numK, int numX, float* phiR, float* phiI, float* phi
   cuda_ret = cudaMemcpy(Qi, Qi_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
   if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
 
+  cudaStreamDestroy(stream0);
+  cudaStreamDestroy(stream1);
+  cudaStreamDestroy(stream2);
+
   cudaFree(phiR_d);
   cudaFree(phiI_d);
   cudaFree(phiMag_d);
