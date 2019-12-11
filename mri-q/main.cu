@@ -51,8 +51,8 @@ void ComputekValsCPUGPU(int numK, int numX, struct kValues *kVals, float* phiR, 
   }
   // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  // ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
 }
 
 void ComputekValsGPU(int numK, int numX, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
