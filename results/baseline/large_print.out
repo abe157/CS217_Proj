@@ -1,0 +1,7 @@
+./mri-q -i ./datasets/large/input/64_64_64_dataset.bin -o ./large.out
+262144 pixels in output; 2048 samples in trajectory; using 2048 samples
+IO        : 0.285543
+Compute   : 6.077421
+Timer Wall Time: 6.363029
+./tools/compare-output ./large.out ./datasets/large/output/64_64_64_dataset.out 
+Pass

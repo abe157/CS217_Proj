@@ -1,0 +1,2 @@
+./mri-q-gpu -i ./datasets/128x128x128/input/128x128x128.bin -o ./128.out
+Makefile:69: recipe for target 'gpu_128' failed

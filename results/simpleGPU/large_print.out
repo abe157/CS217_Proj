@@ -1,0 +1,9 @@
+./mri-q-gpu -i ./datasets/large/input/64_64_64_dataset.bin -o ./large.out
+262144 pixels in output; 2048 samples in trajectory; using 2048 samples
+	BLOCK: 512
+	GRID: 4
+IO        : 0.669858
+Compute   : 6.533065
+Timer Wall Time: 7.202932
+./tools/compare-output ./large.out ./datasets/large/output/64_64_64_dataset.out 
+Pass

@@ -1,0 +1,7 @@
+./mri-q -i ./datasets/small/input/32_32_32_dataset.bin -o ./small.out
+32768 pixels in output; 3072 samples in trajectory; using 3072 samples
+IO        : 0.274442
+Compute   : 1.135645
+Timer Wall Time: 1.410157
+./tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
+Pass

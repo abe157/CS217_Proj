@@ -1,0 +1,13 @@
+./mri-q-gpu -i ./datasets/small/input/32_32_32_dataset.bin -o ./small.out
+32768 pixels in output; 3072 samples in trajectory; using 3072 samples
+	BLOCK: 512
+	GRID: 6
+	BLOCK: 512
+	GRID: 64
+	numX: 32768
+	numK: 3072
+IO        : 0.256409
+Compute   : 0.128880
+Timer Wall Time: 0.385298
+./tools/compare-output ./small.out ./datasets/small/output/32_32_32_dataset.out
+Pass

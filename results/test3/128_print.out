@@ -1,0 +1,11 @@
+./mri-q-gpu -i ./datasets/128x128x128/input/128x128x128.bin -o ./128.out
+2097152 pixels in output; 2097152 samples in trajectory; using 2097152 samples
+	BLOCK: 512
+	GRID: 4096
+	BLOCK: 512
+	GRID: 4096
+	numX: 2097152
+	numK: 2097152
+IO        : 2.659454
+Compute   : 41.469491
+Timer Wall Time: 44.128956
