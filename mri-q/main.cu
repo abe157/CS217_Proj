@@ -123,6 +123,9 @@ int main (int argc, char *argv[]) {
   //ALL GPU
   ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
+  //Using Streams
+  ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
+
 
   /* Write Q values to file */
   if(params->outFile){

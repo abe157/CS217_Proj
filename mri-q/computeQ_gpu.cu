@@ -637,15 +637,6 @@ __global__ void ComputeCombined(){
 
 }
 
-// kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
-// int k;
-// for (k = 0; k < numK; k++) {
-//   kVals[k].Kx = kx[k];
-//   kVals[k].Ky = ky[k]; // of sime numK
-//   kVals[k].Kz = kz[k];
-//   kVals[k].PhiMag = phiMag[k];
-// }
-
 __global__ void CreatekValsGPUKernel(int numk, struct kValues *kVals, float* kx, float* ky, float* kz, float* phiMag){
   unsigned int t = threadIdx.x;
   unsigned int offset = (blockIdx.x*blockDim.x) + t;
@@ -657,6 +648,7 @@ __global__ void CreatekValsGPUKernel(int numk, struct kValues *kVals, float* kx,
     kVals[offset].PhiMag = phiMag[offset];
   }
 }
+
 
 void ComputeOnGPU(int numK, int numX, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
   cudaError_t cuda_ret;
@@ -796,9 +788,157 @@ void ComputeOnGPU(int numK, int numX, float* phiR, float* phiI, float* phiMag, f
   cudaFree(z_d);
   cudaFree(Qr_d);
   cudaFree(Qi_d);
-
 }
 
+void StreamComputeOnGPU(int numK, int numX, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
+  cudaError_t cuda_ret;
+  cudaStream_t stream0, stream1, stream2;
+  cudaStreamCreate(&stream0);
+  cudaStreamCreate(&stream1);
+  cudaStreamCreate(&stream2);
+
+  float *phiR_d, *phiI_d, *phiMag_d; //numK
+  float *kx_d, *ky_d, *kz_d; //numK
+  struct kValues *kVals_d; //numK
+  float *x_d, *y_d, *z_d, *Qr_d, *Qi_d; //numX
+
+
+  // Allocate device variables ---------------------------------
+  //// Used for ComputePhiMag
+  cuda_ret = cudaMalloc((void**)&phiR_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&phiI_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&phiMag_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
+  cuda_ret = cudaMemcpyAsync(phiR_d, phiR, numK * sizeof(float), cudaMemcpyHostToDevice, stream0);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpyAsync(phiI_d, phiI, numK * sizeof(float), cudaMemcpyHostToDevice, stream0);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemset(phiMag_d, 0, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
+
+
+  //// Creating Kvalues
+  cuda_ret = cudaMalloc((void**)&kVals_d, numK * sizeof(struct kValues));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
+  cuda_ret = cudaMalloc((void**)&kx_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&ky_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&kz_d, numK * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
+  cuda_ret = cudaMemcpyAsync(kx_d, kx, numK * sizeof(float), cudaMemcpyHostToDevice, stream1);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpyAsync(ky_d, ky, numK * sizeof(float), cudaMemcpyHostToDevice, stream1);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpyAsync(kz_d, kz, numK * sizeof(float), cudaMemcpyHostToDevice, stream1);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+
+  //// ComputingQ
+  cuda_ret = cudaMalloc((void**)&x_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&y_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&z_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&Qr_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+  cuda_ret = cudaMalloc((void**)&Qi_d, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory ");
+
+  cuda_ret = cudaMemcpyAsync(x_d, x, numX * sizeof(float), cudaMemcpyHostToDevice, stream2);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpyAsync(y_d, y, numX * sizeof(float), cudaMemcpyHostToDevice, stream2);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemcpyAsync(z_d, z, numX * sizeof(float), cudaMemcpyHostToDevice, stream2);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to the device ");
+  cuda_ret = cudaMemset(Qr_d, 0, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
+  cuda_ret = cudaMemset(Qi_d, 0, numX * sizeof(float));
+  if(cuda_ret != cudaSuccess) FATAL("Unable to set device memory ");
+
+
+  // Launch kernel ----------------------------------------------------------
+
+  //// Launching ComputePhiMag
+  dim3 dim_grid, dim_block;
+  unsigned block, grid;
+  block = PHIMAGBLOCK_SIZE;
+  grid = numK / (PHIMAGBLOCK_SIZE);
+  if( numK % (PHIMAGBLOCK_SIZE * grid)) grid++;
+
+  printf("\tBLOCK: %d\n\tGRID: %d\n", block, grid);
+
+  dim_block.x = block;
+  dim_block.y = 1;
+  dim_block.z = 1;
+
+  dim_grid.x = grid;
+  dim_grid.y = 1;
+  dim_grid.z = 1;
+
+  ///// Launching ComputePhiMag
+  ComputePhiMagGPUKernel<<<dim_grid, dim_block, 0, stream0>>>(numK, phiR_d, phiI_d, phiMag_d);
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
+
+
+
+  //// Launching CreatingkValusGPU
+  CreatekValsGPUKernel<<<dim_grid, dim_block, 0, stream1>>>(numK, kVals_d, kx_d, ky_d, kz_d, phiMag_d);
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
+
+
+
+  //// Launching ComputeQGPU
+  block = PHIMAGBLOCK_SIZE;
+  grid = numX / (PHIMAGBLOCK_SIZE);
+  if( numX % (PHIMAGBLOCK_SIZE * grid)) 
+    grid++;
+
+  printf("\tBLOCK: %d\n\tGRID: %d\n\tnumX: %d\n\tnumK: %d\n", block, grid, numX, numK);
+
+  dim_block.x = block;
+  dim_block.y = 1;
+  dim_block.z = 1;
+
+  dim_grid.x = grid;
+  dim_grid.y = 1;
+  dim_grid.z = 1;
+
+  // ComputeQGPUKernel(numK, numX, kVals, x, y, z, Qr, Qi)
+  ComputeQGPUKernel<<<dim_grid, dim_block, 0, stream2>>>(numK, numX, kVals_d, x_d, y_d, z_d, Qr_d, Qi_d);
+  cuda_ret = cudaDeviceSynchronize();
+  if(cuda_ret != cudaSuccess) FATAL("Unable to launch/execute kernel");
+
+  //// Returning Output 
+  // Qr, Qi
+  cuda_ret = cudaMemcpy(Qr, Qr_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
+  cuda_ret = cudaMemcpy(Qi, Qi_d, numX * sizeof(float), cudaMemcpyDeviceToHost);
+  if(cuda_ret != cudaSuccess) FATAL("Unable to copy memory to host");
+
+  cudaFree(phiR_d);
+  cudaFree(phiI_d);
+  cudaFree(phiMag_d);
+  cudaFree(kx_d);
+  cudaFree(ky_d);
+  cudaFree(kz_d);
+  cudaFree(kVals_d);
+  cudaFree(x_d);
+  cudaFree(y_d);
+  cudaFree(z_d);
+  cudaFree(Qr_d);
+  cudaFree(Qi_d);
+
+}
 
 // COMBINED ComputePhiMagGPU() & ComputeQGPU()
 
