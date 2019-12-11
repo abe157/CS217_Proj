@@ -121,7 +121,7 @@ int main (int argc, char *argv[]) {
   // ComputekValsCPUGPU(numK, numX, kVals, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
   //ALL GPU
-  ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
+  // ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
 
   //Using Streams
   ComputekValsGPU(numK, numX, phiR, phiI, phiMag, kx, ky, kz, x, y, z, Qr, Qi);
