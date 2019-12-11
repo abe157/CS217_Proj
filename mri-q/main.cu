@@ -38,8 +38,8 @@
 
 
 void ComputekValsCPUGPU(int numK, int numX, struct kValues *kVals, float* phiR, float* phiI, float* phiMag, float *kx, float *ky, float *kz, float* x, float* y, float* z, float *__restrict__ Qr, float *__restrict__ Qi){
-  // ComputePhiMagGPU(numK, phiR, phiI, phiMag);
-  ComputePhiMagCPU(numK, phiR, phiI, phiMag);
+  ComputePhiMagGPU(numK, phiR, phiI, phiMag);
+  // ComputePhiMagCPU(numK, phiR, phiI, phiMag);
 
   kVals = (struct kValues*)calloc(numK, sizeof (struct kValues));
   int k;
@@ -49,9 +49,9 @@ void ComputekValsCPUGPU(int numK, int numX, struct kValues *kVals, float* phiR, 
     kVals[k].Kz = kz[k];
     kVals[k].PhiMag = phiMag[k];
   }
-  // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
 }
 
