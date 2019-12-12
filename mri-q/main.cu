@@ -49,9 +49,9 @@ void ComputekValsCPUGPU(int numK, int numX, struct kValues *kVals, float* phiR, 
     kVals[k].Kz = kz[k];
     kVals[k].PhiMag = phiMag[k];
   }
-  // ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
+  ComputeQCPU(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU(numK, numX, kVals, x, y, z, Qr, Qi);
-  ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
+  // ComputeQGPU_2(numK, numX, kVals, x, y, z, Qr, Qi);
   // ComputeQGPU_3(numK, numX, kVals, x, y, z, Qr, Qi);
 }
 
